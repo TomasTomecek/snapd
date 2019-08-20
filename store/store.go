@@ -127,6 +127,8 @@ type Config struct {
 
 	// Proxy returns the HTTP proxy to use when talking to the store
 	Proxy func(*http.Request) (*url.URL, error)
+
+	SnapPageBaseURL *url.URL
 }
 
 // setBaseURL updates the store API's base URL in the Config. Must not be used
@@ -229,6 +231,10 @@ func apiURL() *url.URL {
 	return u
 }
 
+func storeWebURL() (*url.URL, error) {
+	return url.Parse("https://snapcraft.io")
+}
+
 // storeURL returns the base store URL, derived from either the given API URL
 // or an env var override.
 func storeURL(api *url.URL) (*url.URL, error) {
@@ -313,6 +319,12 @@ func init() {
 	}
 	defaultConfig.DetailFields = jsonutil.StructFields((*snapDetails)(nil), "snap_yaml_raw")
 	defaultConfig.InfoFields = jsonutil.StructFields((*storeSnap)(nil), "snap-yaml")
+
+	snapWebURI, err := storeWebURL()
+	if err != nil {
+		panic(err)
+	}
+	defaultConfig.SnapPageBaseURL = snapWebURI
 }
 
 type searchResults struct {
@@ -1092,6 +1104,31 @@ func mustBuy(paid bool, bought bool) bool {
 	return !bought
 }
 
+func (s *Store) isCustomStore() (bool, error) {
+	storeID := s.fallbackStoreID
+	if s.dauthCtx != nil {
+		var err error
+		storeID, err = s.dauthCtx.StoreID(storeID)
+		if err != nil {
+			return false, err
+		}
+	}
+	return storeID != "", nil
+}
+
+func (s *Store) storeSnapWebPage(remote *storeInfo) string {
+	custom, err := s.isCustomStore()
+	if custom || err != nil {
+		return ""
+	}
+	if s.cfg.SnapPageBaseURL == nil {
+		return ""
+	}
+	u := *s.cfg.SnapPageBaseURL
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + remote.Name
+	return u.String()
+}
+
 // A SnapSpec describes a single snap wanted from SnapInfo
 type SnapSpec struct {
 	Name string
@@ -1131,6 +1168,7 @@ func (s *Store) SnapInfo(ctx context.Context, snapSpec SnapSpec, user *auth.User
 	if err != nil {
 		return nil, err
 	}
+	info.StoreURL = s.storeSnapWebPage(&remote)
 
 	err = s.decorateOrders([]*snap.Info{info}, user)
 	if err != nil {

@@ -402,11 +402,11 @@ func (iw *infoWriter) printSummary() {
 }
 
 func (iw *infoWriter) printStoreURL() {
-	if iw.remoteSnap == nil {
+	if iw.remoteSnap == nil || iw.remoteSnap.StoreURL == "" {
 		// no store page for snaps that don't come from the store
 		return
 	}
-	fmt.Fprintf(iw, "store-url:\thttps://snapcraft.io/%s\n", snap.InstanceSnap(iw.theSnap.Name))
+	fmt.Fprintf(iw, "store-url:\t%s\n", iw.remoteSnap.StoreURL)
 }
 
 func (iw *infoWriter) maybePrintPublisher() {
