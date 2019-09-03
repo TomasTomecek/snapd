@@ -1,0 +1,10 @@
+#!/bin/bash
+set -ex
+
+p="packaging/fedora"
+
+no_vendor="$(ls -1 ./*.no-vendor.tar.xz | xargs basename)"
+vendor="$(ls -1 ./*.only-vendor.tar.xz | xargs basename)"
+
+sed -i $p/snapd.spec -e "s/https.*no-vendor.tar.xz/$no_vendor/"
+sed -i $p/snapd.spec -e "s/https.*only-vendor.tar.xz/$vendor/"
